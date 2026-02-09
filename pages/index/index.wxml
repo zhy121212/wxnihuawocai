@@ -1,0 +1,37 @@
+<view class="container">
+
+<view class="title">🎨 你画我猜</view>
+
+<view class="role">
+  当前角色：
+  {{ role === 'draw' ? '🧑‍🎨 画画的人' : '🧑‍💭 猜的人' }}
+</view>
+
+<button class="new-btn" bindtap="startNewGame">
+  🎲 新一局
+</button>
+
+<canvas
+  canvas-id="drawCanvas"
+  class="canvas"
+  bindtouchstart="onTouchStart"
+  bindtouchmove="onTouchMove"
+></canvas>
+
+<button class="clear-btn" bindtap="clearCanvas">
+  清空画板
+</button>
+
+<view class="guess-area">
+  <input
+    class="guess-input"
+    placeholder="请输入你猜的答案"
+    bindinput="onInput"
+    value="{{ inputValue }}"
+  />
+  <button bindtap="submitGuess">提交答案</button>
+
+  <view class="result">{{ result }}</view>
+</view>
+
+</view>

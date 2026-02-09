@@ -1,0 +1,10 @@
+<view class="page">
+  <canvas
+    canvas-id="board"
+    style="width: 100%; height: 100vh; background:#fff"
+    bindtouchstart="onTouchStart"
+    bindtouchmove="onTouchMove"
+    bindtouchend="onTouchEnd"
+  />
+</view>
+
