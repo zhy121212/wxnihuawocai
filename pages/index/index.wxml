@@ -1,37 +1,41 @@
 <view class="container">
 
-<view class="title">🎨 你画我猜</view>
-
-<view class="role">
-  当前角色：
-  {{ role === 'draw' ? '🧑‍🎨 画画的人' : '🧑‍💭 猜的人' }}
+<!-- 顶部状态 -->
+<view class="status">
+  <text class="role">
+    {{ isDrawer ? "🎨 你在画画" : "👀 你在猜" }}
+  </text>
 </view>
 
-<button class="new-btn" bindtap="startNewGame">
-  🎲 新一局
-</button>
+<!-- 只有画的人能看到答案 -->
+<view class="answer" wx:if="{{ isDrawer }}">
+  本局答案：{{ answer }}
+</view>
 
+<!-- 画板 -->
 <canvas
-  canvas-id="drawCanvas"
-  class="canvas"
+  canvas-id="board"
+  class="board"
   bindtouchstart="onTouchStart"
   bindtouchmove="onTouchMove"
 ></canvas>
 
-<button class="clear-btn" bindtap="clearCanvas">
-  清空画板
-</button>
-
-<view class="guess-area">
+<!-- 猜词区域（只有猜的人能看到） -->
+<view wx:if="{{ !isDrawer }}" class="guess-box">
   <input
     class="guess-input"
     placeholder="请输入你猜的答案"
-    bindinput="onInput"
-    value="{{ inputValue }}"
+    value="{{ guessText }}"
+    bindinput="onGuessInput"
   />
-  <button bindtap="submitGuess">提交答案</button>
-
-  <view class="result">{{ result }}</view>
+  <button
+    class="guess-btn"
+    bindtap="submitGuess"
+  >
+    提交
+  </button>
 </view>
-
+<button bindtap="clearBoard">
+  清空画布
+</button>
 </view>

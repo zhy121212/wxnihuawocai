@@ -3,6 +3,7 @@
     "pages/index/index"
   ],
   "window": {
-    "navigationBarTitleText": "你画我猜"
+    "navigationBarTitleText": "联机画板"
   }
 }
+

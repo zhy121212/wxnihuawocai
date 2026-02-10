@@ -1,5 +1,3 @@
-// pages/game/game.js
-
 let ws = null
 let ctx = null
 let drawing = false
@@ -7,30 +5,44 @@ let lastX = 0
 let lastY = 0
 
 Page({
+  data: {
+    isDrawer: false
+  },
+
   onLoad() {
-    // 1. 初始化 canvas
     ctx = wx.createCanvasContext('board')
 
-    // 2. 连接 WebSocket（改成你自己的）
     ws = wx.connectSocket({
       url: 'ws://127.0.0.1:8765'
     })
 
-    ws.onOpen(() => {
-      console.log('WS connected')
-    })
-
     ws.onMessage(res => {
       const msg = JSON.parse(res.data)
+
+      // 身份
+      if (msg.type === 'role') {
+        this.setData({
+          isDrawer: msg.drawerId === ws._socketTaskId
+        })
+      }
+
+      // 画画
       if (msg.type === 'draw') {
         const [x1, y1] = msg.from
         const [x2, y2] = msg.to
-        this.drawLine(x1, y1, x2, y2, msg.color, msg.width)
+        this.drawLine(x1, y1, x2, y2)
+      }
+
+      // 清空
+      if (msg.type === 'clear') {
+        ctx.clearRect(0, 0, 1000, 1000)
+        ctx.draw()
       }
     })
   },
 
   onTouchStart(e) {
+    if (!this.data.isDrawer) return
     const { x, y } = e.touches[0]
     lastX = x
     lastY = y
@@ -38,21 +50,17 @@ Page({
   },
 
   onTouchMove(e) {
-    if (!drawing) return
+    if (!this.data.isDrawer || !drawing) return
 
     const { x, y } = e.touches[0]
 
-    // 本地画
     this.drawLine(lastX, lastY, x, y)
 
-    // 发给服务器
     ws.send({
       data: JSON.stringify({
         type: 'draw',
         from: [lastX, lastY],
-        to: [x, y],
-        color: '#000',
-        width: 4
+        to: [x, y]
       })
     })
 
@@ -64,15 +72,24 @@ Page({
     drawing = false
   },
 
-  drawLine(x1, y1, x2, y2, color = '#000', width = 4) {
-    ctx.setStrokeStyle(color)
-    ctx.setLineWidth(width)
+  drawLine(x1, y1, x2, y2) {
+    ctx.setStrokeStyle('#000')
+    ctx.setLineWidth(4)
     ctx.setLineCap('round')
-
     ctx.beginPath()
     ctx.moveTo(x1, y1)
     ctx.lineTo(x2, y2)
     ctx.stroke()
     ctx.draw(true)
+  },
+
+  clearBoard() {
+    ctx.clearRect(0, 0, 1000, 1000)
+    ctx.draw()
+
+    ws.send({
+      data: JSON.stringify({ type: 'clear' })
+    })
   }
+  
 })
