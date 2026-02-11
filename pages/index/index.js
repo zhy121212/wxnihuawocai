@@ -2,13 +2,34 @@ const app = getApp()
 
 Page({
   data: {
+    // 房间与玩家
+    roomId: "room1", // 固定或从参数拿
+    playerId: "player_" + Math.floor(Math.random() * 1000),
+    members: [],
+    host: "",
+    ready: false,
+    allReady: false,
+
+    // 游戏状态
+    gameStarted: false,
     isDrawer: false,
     answer: "",
     guessText: ""
   },
 
+  onLoad() {
+    // 自动加入房间（核心）
+    const ws = app.globalData.ws
+    ws.send({
+      data: JSON.stringify({
+        type: "join_room",
+        playerId: this.data.playerId,
+        roomId: this.data.roomId
+      })
+    })
+  },
+
   onReady() {
-    // 初始化画布
     this.ctx = wx.createCanvasContext("board", this)
     this.lastX = null
     this.lastY = null
@@ -18,23 +39,51 @@ Page({
     ws.onMessage(res => {
       const data = JSON.parse(res.data)
 
-      // ===== 角色分配 =====
-      if (data.type === "role") {
-        app.globalData.drawerId = data.drawer
+      // ===== 房间信息 =====
+      if (data.type === "room_info") {
+        const allReady =
+          data.members.length > 0 &&
+          data.members.every(m => m.ready)
+
         this.setData({
-          isDrawer: app.globalData.clientId === data.drawer
+          host: data.host,
+          members: data.members,
+          allReady
         })
+        return
+      }
+
+      // ===== 游戏开始 =====
+      if (data.type === "game_start") {
+        this.setData({
+          gameStarted: true,
+          isDrawer: this.data.playerId === data.drawer,
+          answer: data.answer
+        })
+        this.clearCanvas()
+        return
+      }
+
+      // ===== 下一局 =====
+      if (data.type === "next_round") {
+        this.setData({
+          isDrawer: this.data.playerId === data.drawer,
+          answer: data.answer,
+          guessText: ""
+        })
+        this.clearCanvas()
         return
       }
 
       // ===== 画画同步 =====
       if (data.type === "draw") {
-        this.drawLine(
-          data.x1,
-          data.y1,
-          data.x2,
-          data.y2
-        )
+        this.drawLine(data.x1, data.y1, data.x2, data.y2)
+        return
+      }
+
+      // ===== 清空画布 =====
+      if (data.type === "clear") {
+        this.clearCanvas()
         return
       }
 
@@ -46,43 +95,43 @@ Page({
         })
         return
       }
+    })
+  },
 
-      // ===== 下一局 =====
-      if (data.type === "next_round") {
-        app.globalData.drawerId = data.drawer
+  // ================= 准备 =================
+  toggleReady() {
+    const ws = app.globalData.ws
+    const ready = !this.data.ready
+    this.setData({ ready })
 
-        this.setData({
-          isDrawer: app.globalData.clientId === data.drawer,
-          answer: data.answer,
-          guessText: ""
-        })
+    ws.send({
+      data: JSON.stringify({
+        type: "set_ready",
+        ready
+      })
+    })
+  },
 
-        this.ctx.clearRect(0, 0, 1000, 1000)
-        this.ctx.draw()
-        return
-      }
-
-      // ===== 清空画布 =====
-      if (data.type === "clear") {
-        this.ctx.clearRect(0, 0, 1000, 1000)
-        this.ctx.draw()
-        return
-      }
+  // ================= 房主开始 =================
+  startGame() {
+    const ws = app.globalData.ws
+    ws.send({
+      data: JSON.stringify({
+        type: "start_game"
+      })
     })
   },
 
   // ================= 画画 =================
-
   onTouchStart(e) {
-    if (!this.data.isDrawer) return
+    if (!this.data.isDrawer || !this.data.gameStarted) return
     const t = e.touches[0]
     this.lastX = t.x
     this.lastY = t.y
   },
 
   onTouchMove(e) {
-    if (!this.data.isDrawer) return
-
+    if (!this.data.isDrawer || !this.data.gameStarted) return
     const t = e.touches[0]
     const x = t.x
     const y = t.y
@@ -90,11 +139,9 @@ Page({
 
     if (this.lastX !== null) {
       this.drawLine(this.lastX, this.lastY, x, y)
-
       ws.send({
         data: JSON.stringify({
           type: "draw",
-          from: app.globalData.clientId,
           x1: this.lastX,
           y1: this.lastY,
           x2: x,
@@ -105,6 +152,11 @@ Page({
 
     this.lastX = x
     this.lastY = y
+  },
+
+  onTouchEnd() {
+    this.lastX = null
+    this.lastY = null
   },
 
   drawLine(x1, y1, x2, y2) {
@@ -119,43 +171,34 @@ Page({
     ctx.draw(true)
   },
 
-  // ================= 清空画布 =================
-
-  clearBoard() {
-    // 本地清空
+  // ================= 清空 =================
+  clearCanvas() {
+    if (!this.ctx) return
     this.ctx.clearRect(0, 0, 1000, 1000)
     this.ctx.draw()
+  },
 
-    // 通知服务器
+  clearBoard() {
+    if (!this.data.isDrawer) return
+    this.clearCanvas()
     const ws = app.globalData.ws
-    ws.send({
-      data: JSON.stringify({
-        type: "clear",
-        from: app.globalData.clientId
-      })
-    })
+    ws.send({ data: JSON.stringify({ type: "clear" }) })
   },
 
   // ================= 猜词 =================
-
   onGuessInput(e) {
-    this.setData({
-      guessText: e.detail.value
-    })
+    this.setData({ guessText: e.detail.value })
   },
 
   submitGuess() {
-    if (!this.data.guessText) return
-
+    if (!this.data.guessText || !this.data.gameStarted) return
     const ws = app.globalData.ws
     ws.send({
       data: JSON.stringify({
         type: "guess",
-        from: app.globalData.clientId,
         answer: this.data.guessText
       })
     })
-
     this.setData({ guessText: "" })
   }
 })

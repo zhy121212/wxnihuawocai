@@ -1,41 +1,81 @@
 <view class="container">
 
-<!-- 顶部状态 -->
-<view class="status">
-  <text class="role">
-    {{ isDrawer ? "🎨 你在画画" : "👀 你在猜" }}
-  </text>
-</view>
+<!-- ===== 房间未开始游戏 ===== -->
+<view wx:if="{{!gameStarted}}">
 
-<!-- 只有画的人能看到答案 -->
-<view class="answer" wx:if="{{ isDrawer }}">
-  本局答案：{{ answer }}
-</view>
+  <!-- 房间信息 -->
+  <view class="room-info">
+    <text>房间ID：{{roomId}}</text>
+  </view>
 
-<!-- 画板 -->
-<canvas
-  canvas-id="board"
-  class="board"
-  bindtouchstart="onTouchStart"
-  bindtouchmove="onTouchMove"
-></canvas>
+  <!-- 房间成员列表 -->
+  <view wx:if="{{members.length}}">
+    <text>房间成员:</text>
+    <block wx:for="{{members}}" wx:key="id">
+      <view>
+        <text>
+          {{item.id}}
+          {{item.ready ? '✅ 已准备' : '❌ 未准备'}}
+          {{item.id === host ? '（房主）' : ''}}
+        </text>
+      </view>
+    </block>
+  </view>
 
-<!-- 猜词区域（只有猜的人能看到） -->
-<view wx:if="{{ !isDrawer }}" class="guess-box">
-  <input
-    class="guess-input"
-    placeholder="请输入你猜的答案"
-    value="{{ guessText }}"
-    bindinput="onGuessInput"
-  />
-  <button
-    class="guess-btn"
-    bindtap="submitGuess"
-  >
-    提交
+  <!-- 自己准备按钮 -->
+  <button bindtap="toggleReady">
+    {{ ready ? '取消准备' : '准备' }}
   </button>
+
+  <!-- 房主开始按钮 -->
+  <button
+    wx:if="{{playerId === host && allReady}}"
+    bindtap="startGame"
+  >
+    开始游戏
+  </button>
+
 </view>
-<button bindtap="clearBoard">
-  清空画布
-</button>
+
+<!-- ===== 游戏界面 ===== -->
+<view wx:else>
+
+  <!-- 顶部状态 -->
+  <view class="status">
+    <text class="role">
+      {{ isDrawer ? "🎨 你在画画" : "👀 你在猜" }}
+    </text>
+  </view>
+
+  <!-- 答案（画的人可见） -->
+  <view class="answer" wx:if="{{isDrawer}}">
+    本局答案：{{answer}}
+  </view>
+
+  <!-- 画板 -->
+  <canvas
+    canvas-id="board"
+    class="board"
+    bindtouchstart="onTouchStart"
+    bindtouchmove="onTouchMove"
+    bindtouchend="onTouchEnd"
+  ></canvas>
+
+  <!-- 猜词区域 -->
+  <view wx:if="{{!isDrawer}}" class="guess-box">
+    <input
+      placeholder="请输入你猜的答案"
+      value="{{guessText}}"
+      bindinput="onGuessInput"
+    />
+    <button bindtap="submitGuess">提交</button>
+  </view>
+
+  <!-- 清空画布 -->
+  <button wx:if="{{isDrawer}}" bindtap="clearBoard">
+    清空画布
+  </button>
+
+</view>
+
 </view>
