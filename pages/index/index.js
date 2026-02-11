@@ -2,15 +2,12 @@ const app = getApp()
 
 Page({
   data: {
-    // 房间与玩家
-    roomId: "room1", // 固定或从参数拿
+    roomId: "room1",
     playerId: "player_" + Math.floor(Math.random() * 1000),
     members: [],
     host: "",
     ready: false,
     allReady: false,
-
-    // 游戏状态
     gameStarted: false,
     isDrawer: false,
     answer: "",
@@ -19,13 +16,10 @@ Page({
 
   onLoad() {
     // 自动加入房间（核心）
-    const ws = app.globalData.ws
-    ws.send({
-      data: JSON.stringify({
-        type: "join_room",
-        playerId: this.data.playerId,
-        roomId: this.data.roomId
-      })
+    app.safeSend({
+      type: "join_room",
+      playerId: this.data.playerId,
+      roomId: this.data.roomId
     })
   },
 
@@ -100,26 +94,18 @@ Page({
 
   // ================= 准备 =================
   toggleReady() {
-    const ws = app.globalData.ws
     const ready = !this.data.ready
     this.setData({ ready })
 
-    ws.send({
-      data: JSON.stringify({
-        type: "set_ready",
-        ready
-      })
+    app.safeSend({
+      type: "set_ready",
+      ready
     })
   },
 
   // ================= 房主开始 =================
   startGame() {
-    const ws = app.globalData.ws
-    ws.send({
-      data: JSON.stringify({
-        type: "start_game"
-      })
-    })
+    app.safeSend({ type: "start_game" })
   },
 
   // ================= 画画 =================
@@ -135,18 +121,15 @@ Page({
     const t = e.touches[0]
     const x = t.x
     const y = t.y
-    const ws = app.globalData.ws
 
     if (this.lastX !== null) {
       this.drawLine(this.lastX, this.lastY, x, y)
-      ws.send({
-        data: JSON.stringify({
-          type: "draw",
-          x1: this.lastX,
-          y1: this.lastY,
-          x2: x,
-          y2: y
-        })
+      app.safeSend({
+        type: "draw",
+        x1: this.lastX,
+        y1: this.lastY,
+        x2: x,
+        y2: y
       })
     }
 
@@ -181,8 +164,7 @@ Page({
   clearBoard() {
     if (!this.data.isDrawer) return
     this.clearCanvas()
-    const ws = app.globalData.ws
-    ws.send({ data: JSON.stringify({ type: "clear" }) })
+    app.safeSend({ type: "clear" })
   },
 
   // ================= 猜词 =================
@@ -192,12 +174,9 @@ Page({
 
   submitGuess() {
     if (!this.data.guessText || !this.data.gameStarted) return
-    const ws = app.globalData.ws
-    ws.send({
-      data: JSON.stringify({
-        type: "guess",
-        answer: this.data.guessText
-      })
+    app.safeSend({
+      type: "guess",
+      answer: this.data.guessText
     })
     this.setData({ guessText: "" })
   }
