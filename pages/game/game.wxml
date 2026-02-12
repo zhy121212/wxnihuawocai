@@ -17,10 +17,11 @@
   bindtouchstart="onTouchStart"
   bindtouchmove="onTouchMove"
   bindtouchend="onTouchEnd"
+  style="width:{{boardWidth}}px; height:{{boardHeight}}px"
 ></canvas>
 
-<!-- 猜词区域 -->
-<view wx:if="{{!isDrawer}}" class="guess-box">
+<!-- 猜词区域（弹窗出现时隐藏） -->
+<view wx:if="{{!isDrawer && !showRoundEnd}}" class="guess-box">
   <input
     placeholder="请输入你猜的答案"
     value="{{guessText}}"
@@ -29,15 +30,24 @@
   <button bindtap="submitGuess">提交</button>
 </view>
 
-<!-- 清空画布 -->
-<button wx:if="{{isDrawer}}" bindtap="clearBoard">
+<!-- 清空画布按钮 -->
+<button wx:if="{{isDrawer}}" class="clear-btn" bindtap="clearBoard">
   清空画布
 </button>
+
+<!-- 历史猜测 / 过程显示区域（弹窗出现时隐藏） -->
+<view wx:if="{{!showRoundEnd}}" class="guess-history">
+  <text>历史猜测：</text>
+  <block wx:for="{{guessHistory}}" wx:key="index">
+    <text>{{item}}</text>
+  </block>
+</view>
 
 <!-- 猜对弹窗 -->
 <view wx:if="{{showRoundEnd}}" class="round-end-overlay">
   <view class="round-end-content">
     <text>🎉 猜对了！上一轮画作：</text>
+    <text>答案：{{lastAnswer}}</text>
     <image src="{{lastCanvasImage}}" mode="widthFix"></image>
     <button bindtap="closeRoundEnd">关闭</button>
   </view>
