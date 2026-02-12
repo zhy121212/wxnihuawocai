@@ -8,7 +8,7 @@ App({
 
   onLaunch() {
     const ws = wx.connectSocket({
-      url: "ws://209.54.106.29:8765"
+      url: "wss://zzz.zhy1212.top/ws"
     })
     this.globalData.ws = ws
 
