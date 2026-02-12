@@ -1,9 +1,9 @@
 {
-  "pages": [
-    "pages/index/index"
+  "pages":[
+    "pages/index/index",
+    "pages/game/game"
   ],
-  "window": {
-    "navigationBarTitleText": "联机画板"
+  "window":{
+    "navigationBarTitleText":"你画我猜"
   }
 }
-

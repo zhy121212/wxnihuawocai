@@ -28,52 +28,8 @@
   </button>
 
   <!-- 房主开始按钮 -->
-  <button
-    wx:if="{{playerId === host && allReady}}"
-    bindtap="startGame"
-  >
+  <button wx:if="{{playerId === host && allReady}}" bindtap="startGame">
     开始游戏
-  </button>
-
-</view>
-
-<!-- ===== 游戏界面 ===== -->
-<view wx:else>
-
-  <!-- 顶部状态 -->
-  <view class="status">
-    <text class="role">
-      {{ isDrawer ? "🎨 你在画画" : "👀 你在猜" }}
-    </text>
-  </view>
-
-  <!-- 答案（画的人可见） -->
-  <view class="answer" wx:if="{{isDrawer}}">
-    本局答案：{{answer}}
-  </view>
-
-  <!-- 画板 -->
-  <canvas
-    canvas-id="board"
-    class="board"
-    bindtouchstart="onTouchStart"
-    bindtouchmove="onTouchMove"
-    bindtouchend="onTouchEnd"
-  ></canvas>
-
-  <!-- 猜词区域 -->
-  <view wx:if="{{!isDrawer}}" class="guess-box">
-    <input
-      placeholder="请输入你猜的答案"
-      value="{{guessText}}"
-      bindinput="onGuessInput"
-    />
-    <button bindtap="submitGuess">提交</button>
-  </view>
-
-  <!-- 清空画布 -->
-  <button wx:if="{{isDrawer}}" bindtap="clearBoard">
-    清空画布
   </button>
 
 </view>

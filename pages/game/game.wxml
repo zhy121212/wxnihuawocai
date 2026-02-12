@@ -1,10 +1,46 @@
-<view class="page">
-  <canvas
-    canvas-id="board"
-    style="width: 100%; height: 100vh; background:#fff"
-    bindtouchstart="onTouchStart"
-    bindtouchmove="onTouchMove"
-    bindtouchend="onTouchEnd"
-  />
+<view class="container">
+
+<!-- 顶部状态 -->
+<view class="status">
+  <text class="role">{{ isDrawer ? "🎨 你在画画" : "👀 你在猜" }}</text>
 </view>
 
+<!-- 答案（画的人可见） -->
+<view class="answer" wx:if="{{isDrawer}}">
+  本局答案：{{answer}}
+</view>
+
+<!-- 画板 -->
+<canvas
+  canvas-id="board"
+  class="board"
+  bindtouchstart="onTouchStart"
+  bindtouchmove="onTouchMove"
+  bindtouchend="onTouchEnd"
+></canvas>
+
+<!-- 猜词区域 -->
+<view wx:if="{{!isDrawer}}" class="guess-box">
+  <input
+    placeholder="请输入你猜的答案"
+    value="{{guessText}}"
+    bindinput="onGuessInput"
+  />
+  <button bindtap="submitGuess">提交</button>
+</view>
+
+<!-- 清空画布 -->
+<button wx:if="{{isDrawer}}" bindtap="clearBoard">
+  清空画布
+</button>
+
+<!-- 猜对弹窗 -->
+<view wx:if="{{showRoundEnd}}" class="round-end-overlay">
+  <view class="round-end-content">
+    <text>🎉 猜对了！上一轮画作：</text>
+    <image src="{{lastCanvasImage}}" mode="widthFix"></image>
+    <button bindtap="closeRoundEnd">关闭</button>
+  </view>
+</view>
+
+</view>
