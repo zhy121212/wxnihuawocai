@@ -57,13 +57,14 @@ Page({
         finalW = (finalH / CANVAS_LOGIC_HEIGHT) * CANVAS_LOGIC_WIDTH
       }
       this.setData({ boardWidth: finalW, boardHeight: finalH })
-    } catch (e) {}
+    } catch (e) {
+      console.error("获取窗口信息失败", e)
+    }
 
     this.ctx = wx.createCanvasContext("board", this)
     this.lastX = null
     this.lastY = null
 
-    // 监听消息
     const ws = app.globalData.ws
     ws.onMessage(res => {
       const data = JSON.parse(res.data)
@@ -99,12 +100,13 @@ Page({
       }
 
       if (data.type === "game_start") {
-        // 这里的防抖逻辑保留，防止极少数情况下的重复刷新
+        const isD = (this.data.playerId === data.drawer)
+        
+        // 防止重复刷新
         if (this.data.answer === data.answer && this.data.drawerName === data.drawer) {
             return;
         }
 
-        const isD = (this.data.playerId === data.drawer)
         this.setData({
           isDrawer: isD,
           drawerName: data.drawer,
@@ -114,8 +116,11 @@ Page({
           guessHistory: [],
           showChoiceModal: false,
           waitingForChoice: false,
-          remainingTime: 60
+          remainingTime: 60,
+          lastCanvasImage: "" // 关键：清空上一局的截图数据
         })
+        
+        // 关键：清空画布内容
         this.clearCanvas()
       }
     })

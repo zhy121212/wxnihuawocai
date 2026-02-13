@@ -28,7 +28,8 @@
 </view>
 
 <!-- 画板 -->
-<canvas canvas-id="board" class="board" bindtouchstart="onTouchStart" bindtouchmove="onTouchMove" bindtouchend="onTouchEnd" style="width:{{boardWidth}}px; height:{{boardHeight}}px"></canvas>
+<canvas canvas-id="board" class="board" hidden="{{showRoundEnd || showChoiceModal || waitingForChoice}}" bindtouchstart="onTouchStart" bindtouchmove="onTouchMove" bindtouchend="onTouchEnd" style="width:{{boardWidth}}px; height:{{boardHeight}}px"></canvas>
+
 
 <!-- 猜词区域 -->
 <view wx:if="{{!isDrawer && !showRoundEnd && !waitingForChoice}}" class="guess-box">
