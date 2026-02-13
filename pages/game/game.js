@@ -5,9 +5,9 @@ const CANVAS_LOGIC_HEIGHT = 400
 
 Page({
   data: {
-    playerId: app.globalData.clientId, // 获取昵称
+    playerId: app.globalData.clientId,
     isDrawer: false,
-    drawerName: "", // 当前画家名字
+    drawerName: "",
     answer: "",
     hint: "",
     guessText: "",
@@ -32,38 +32,38 @@ Page({
   preventTouchMove() {},
 
   onLoad(options) {
-    // options.drawer 是画家的名字
     const drawerName = options.drawer || ""
     const isDrawer = (this.data.playerId === drawerName)
     
     this.setData({
       isDrawer: isDrawer,
       drawerName: drawerName,
-      answer: isDrawer ? options.answer : "", // 只有画家能看到答案
-      hint: isDrawer ? "" : options.hint // 猜的人看提示
+      answer: isDrawer ? options.answer : "",
+      hint: isDrawer ? "" : options.hint
     })
   },
 
   onReady() {
-    wx.getSystemInfo({
-      success: res => {
-        const displayWidth = res.windowWidth * 0.92
-        const displayHeight = (displayWidth / CANVAS_LOGIC_WIDTH) * CANVAS_LOGIC_HEIGHT
-        const maxH = res.windowHeight * 0.5
-        let finalW = displayWidth
-        let finalH = displayHeight
-        if (displayHeight > maxH) {
-          finalH = maxH
-          finalW = (finalH / CANVAS_LOGIC_HEIGHT) * CANVAS_LOGIC_WIDTH
-        }
-        this.setData({ boardWidth: finalW, boardHeight: finalH })
+    // 初始化画布尺寸
+    try {
+      const windowInfo = wx.getWindowInfo()
+      const displayWidth = windowInfo.windowWidth * 0.92
+      const displayHeight = (displayWidth / CANVAS_LOGIC_WIDTH) * CANVAS_LOGIC_HEIGHT
+      const maxH = windowInfo.windowHeight * 0.5
+      let finalW = displayWidth
+      let finalH = displayHeight
+      if (displayHeight > maxH) {
+        finalH = maxH
+        finalW = (finalH / CANVAS_LOGIC_HEIGHT) * CANVAS_LOGIC_WIDTH
       }
-    })
+      this.setData({ boardWidth: finalW, boardHeight: finalH })
+    } catch (e) {}
 
     this.ctx = wx.createCanvasContext("board", this)
     this.lastX = null
     this.lastY = null
 
+    // 监听消息
     const ws = app.globalData.ws
     ws.onMessage(res => {
       const data = JSON.parse(res.data)
@@ -99,10 +99,15 @@ Page({
       }
 
       if (data.type === "game_start") {
+        // 这里的防抖逻辑保留，防止极少数情况下的重复刷新
+        if (this.data.answer === data.answer && this.data.drawerName === data.drawer) {
+            return;
+        }
+
         const isD = (this.data.playerId === data.drawer)
         this.setData({
           isDrawer: isD,
-          drawerName: data.drawer, // 更新画家名字
+          drawerName: data.drawer,
           answer: isD ? data.answer : "",
           hint: isD ? "" : data.hint,
           guessText: "",
@@ -144,7 +149,6 @@ Page({
     app.safeSend({ type: "close_round" })
   },
 
-  // 绘图函数保持不变...
   onTouchStart(e) {
     if (!this.data.isDrawer) return
     const t = e.touches[0]; this.lastX = t.x; this.lastY = t.y

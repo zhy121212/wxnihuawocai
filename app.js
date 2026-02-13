@@ -11,7 +11,7 @@ App({
     this.globalData.clientId = "user_" + Math.floor(Math.random() * 10000)
     
     const ws = wx.connectSocket({
-      url: "ws://192.168.0.166:8675"
+      url: "wss://zzz.zhy1212.top/ws"
     })
     this.globalData.ws = ws
 
