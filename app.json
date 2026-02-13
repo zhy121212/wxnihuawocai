@@ -5,5 +5,6 @@
   ],
   "window":{
     "navigationBarTitleText":"你画我猜"
-  }
+  },
+  "lazyCodeLoading": "requiredComponents"
 }
