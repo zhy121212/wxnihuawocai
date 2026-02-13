@@ -1,7 +1,7 @@
 # server.py
 import asyncio, websockets, json, random, requests
 # ================= 配置区域 =================
-AI_API_KEY = "sk-3c213a53c3034bc2af367beeaeb3c9e3"
+AI_API_KEY = "sk-3c213a53c3034bc2af367beeaeb3c9ee"
 AI_API_URL = "https://api.deepseek.com/chat/completions"
 AI_MODEL = "deepseek-chat"
 REFILL_THRESHOLD = 30
