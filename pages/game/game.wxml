@@ -1,8 +1,15 @@
-<view class="container" catchtouchmove="true">
+<view class="container" catchtouchmove="preventTouchMove">
 
 <!-- 顶部状态 -->
-<view class="status">
-  <text class="role">{{ isDrawer ? "🎨 你在画画" : "👀 你在猜" }}</text>
+<view class="status-bar">
+  <!-- 优化：显示具体的画家名字 -->
+  <text class="role">
+    {{ isDrawer ? "🎨 你在画画" : "👀 " + drawerName + " 正在画" }}
+  </text>
+  
+  <view class="timer {{remainingTime <= 10 ? 'timer-danger' : ''}}">
+    ⏱️ {{remainingTime}}s
+  </view>
 </view>
 
 <!-- 答案（画的人可见） -->
@@ -10,46 +17,64 @@
   本局答案：{{answer}}
 </view>
 
-<!-- 画板 -->
-<canvas
-  canvas-id="board"
-  class="board"
-  bindtouchstart="onTouchStart"
-  bindtouchmove="onTouchMove"
-  bindtouchend="onTouchEnd"
-  style="width:{{boardWidth}}px; height:{{boardHeight}}px"
-></canvas>
+<!-- 提示（猜的人可见） -->
+<view class="hint" wx:if="{{!isDrawer && hint}}">
+  💡 提示：{{hint}}
+</view>
 
-<!-- 猜词区域（弹窗出现时隐藏） -->
-<view wx:if="{{!isDrawer && !showRoundEnd}}" class="guess-box">
-  <input
-    placeholder="请输入你猜的答案"
-    value="{{guessText}}"
-    bindinput="onGuessInput"
-  />
+<!-- 等待选词提示 -->
+<view class="waiting-box" wx:if="{{waitingForChoice}}">
+  <text>⏳ 等待 {{drawerName}} 选题...</text>
+</view>
+
+<!-- 画板 -->
+<canvas canvas-id="board" class="board" bindtouchstart="onTouchStart" bindtouchmove="onTouchMove" bindtouchend="onTouchEnd" style="width:{{boardWidth}}px; height:{{boardHeight}}px"></canvas>
+
+<!-- 猜词区域 -->
+<view wx:if="{{!isDrawer && !showRoundEnd && !waitingForChoice}}" class="guess-box">
+  <input placeholder="请输入你猜的答案" value="{{guessText}}" bindinput="onGuessInput" />
   <button bindtap="submitGuess">提交</button>
 </view>
 
 <!-- 清空画布按钮 -->
-<button wx:if="{{isDrawer}}" class="clear-btn" bindtap="clearBoard">
-  清空画布
-</button>
+<button wx:if="{{isDrawer && !showChoiceModal}}" class="clear-btn" bindtap="clearBoard">清空画布</button>
 
-<!-- 历史猜测 / 过程显示区域（弹窗出现时隐藏） -->
-<view wx:if="{{!showRoundEnd}}" class="guess-history">
-  <text>历史猜测：</text>
-  <block wx:for="{{guessHistory}}" wx:key="index">
-    <text>{{item}}</text>
-  </block>
+<!-- 历史猜测 -->
+<view wx:if="{{!showRoundEnd && !showChoiceModal && guessHistory.length > 0}}" class="guess-history-container">
+  <view class="history-title">💡 猜测记录</view>
+  <scroll-view class="history-scroll" scroll-y="true" scroll-into-view="{{scrollToView}}" scroll-with-animation="true">
+    <view class="history-list">
+      <block wx:for="{{guessHistory}}" wx:key="index">
+        <view class="history-item" id="item-{{index}}">
+          <text class="history-name">{{item.player}}:</text>
+          <text class="history-text">{{item.text}}</text>
+        </view>
+      </block>
+      <view id="scroll-bottom"></view>
+    </view>
+  </scroll-view>
 </view>
 
-<!-- 猜对弹窗 -->
+<!-- 结果弹窗 -->
 <view wx:if="{{showRoundEnd}}" class="round-end-overlay">
   <view class="round-end-content">
-    <text>🎉 猜对了！上一轮画作：</text>
-    <text>答案：{{lastAnswer}}</text>
-    <image src="{{lastCanvasImage}}" mode="widthFix"></image>
-    <button bindtap="closeRoundEnd">关闭</button>
+    <text class="title">{{isTimeout ? '⏰ 时间到！' : '🎉 猜对了！'}}</text>
+    <view class="drawer-info"><text>画家：{{lastDrawer}}</text></view>
+    <view class="answer-info"><text>答案：{{lastAnswer}}</text></view>
+    <image src="{{lastCanvasImage}}" mode="widthFix" class="last-image"></image>
+    <button bindtap="closeRoundEnd">开始下一轮</button>
+  </view>
+</view>
+
+<!-- 选词弹窗 -->
+<view wx:if="{{showChoiceModal}}" class="choice-modal">
+  <view class="choice-content">
+    <text class="choice-title">轮到你画画了！请选择词语：</text>
+    <view class="choice-options">
+      <block wx:for="{{choiceOptions}}" wx:key="index">
+        <button class="choice-btn" bindtap="chooseWord" data-word="{{item}}">{{item}}</button>
+      </block>
+    </view>
   </view>
 </view>
 

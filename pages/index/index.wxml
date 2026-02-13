@@ -1,18 +1,37 @@
 <view class="container">
 
-<!-- ===== 房间未开始游戏 ===== -->
-<view wx:if="{{!gameStarted}}">
+<!-- ===== 1. 登录界面：输入用户名 ===== -->
+<view wx:if="{{!hasJoined}}" class="login-box">
+  <view class="login-title">欢迎来到你画我猜</view>
+  
+  <view class="input-row">
+    <text>你的昵称：</text>
+    <input 
+      class="name-input" 
+      placeholder="请输入昵称" 
+      value="{{inputName}}" 
+      bindinput="onNameInput" 
+      maxlength="8"
+    />
+  </view>
+
+  <button class="join-btn" bindtap="joinRoom">进入房间</button>
+</view>
+
+<!-- ===== 2. 房间大厅：准备/开始 ===== -->
+<view wx:if="{{hasJoined}}">
 
   <!-- 房间信息 -->
   <view class="room-info">
     <text>房间ID：{{roomId}}</text>
+    <text style="margin-left:20rpx">你是：{{playerId}}</text>
   </view>
 
   <!-- 房间成员列表 -->
   <view wx:if="{{members.length}}">
     <text>房间成员:</text>
     <block wx:for="{{members}}" wx:key="id">
-      <view>
+      <view class="member-item">
         <text>
           {{item.id}}
           {{item.ready ? '✅ 已准备' : '❌ 未准备'}}
@@ -23,15 +42,29 @@
   </view>
 
   <!-- 自己准备按钮 -->
-  <button bindtap="toggleReady">
+  <button bindtap="toggleReady" class="{{ready ? 'btn-cancel' : 'btn-primary'}}">
     {{ ready ? '取消准备' : '准备' }}
   </button>
 
   <!-- 房主开始按钮 -->
-  <button wx:if="{{playerId === host && allReady}}" bindtap="startGame">
+  <button wx:if="{{playerId === host && allReady}}" bindtap="startGame" class="btn-success">
     开始游戏
   </button>
 
+</view>
+
+<!-- 选词弹窗 -->
+<view wx:if="{{showChoiceModal}}" class="choice-modal">
+  <view class="choice-content">
+    <text class="choice-title">请选择一个词语来画：</text>
+    <view class="choice-options">
+      <block wx:for="{{choiceOptions}}" wx:key="index">
+        <button class="choice-btn" bindtap="chooseWord" data-word="{{item}}">
+          {{item}}
+        </button>
+      </block>
+    </view>
+  </view>
 </view>
 
 </view>

@@ -1,33 +1,62 @@
+// game.js
 const app = getApp()
+const CANVAS_LOGIC_WIDTH = 400
+const CANVAS_LOGIC_HEIGHT = 400
 
 Page({
   data: {
-    playerId: app.globalData.clientId,
+    playerId: app.globalData.clientId, // 获取昵称
     isDrawer: false,
+    drawerName: "", // 当前画家名字
     answer: "",
+    hint: "",
     guessText: "",
     lastCanvasImage: "",
-    lastAnswer: "",      // 保存上一轮答案
+    lastAnswer: "",
+    lastDrawer: "",
     showRoundEnd: false,
+    isTimeout: false,
     boardWidth: 300,
-    boardHeight: 300,
-    guessHistory: []     // 历史猜测
+    boardHeight: 400,
+    guessHistory: [],
+    showChoiceModal: false,
+    choiceOptions: [],
+    waitingForChoice: false,
+    remainingTime: 60,
+    scrollToView: ""
   },
 
-  onLoad(options){
+  drawBuffer: [],
+  lastSendTime: 0,
+  lastRemotePoint: null,
+  preventTouchMove() {},
+
+  onLoad(options) {
+    // options.drawer 是画家的名字
+    const drawerName = options.drawer || ""
+    const isDrawer = (this.data.playerId === drawerName)
+    
     this.setData({
-      isDrawer: this.data.playerId === options.drawer,
-      answer: options.answer
+      isDrawer: isDrawer,
+      drawerName: drawerName,
+      answer: isDrawer ? options.answer : "", // 只有画家能看到答案
+      hint: isDrawer ? "" : options.hint // 猜的人看提示
     })
   },
 
-  onReady(){
-    // 动态计算画板尺寸，自适应屏幕宽度，固定高度为屏幕高度的50%
+  onReady() {
     wx.getSystemInfo({
       success: res => {
-        const width = res.windowWidth * 0.9
-        const height = res.windowHeight * 0.5
-        this.setData({ boardWidth: width, boardHeight: height })
+        const displayWidth = res.windowWidth * 0.92
+        const displayHeight = (displayWidth / CANVAS_LOGIC_WIDTH) * CANVAS_LOGIC_HEIGHT
+        const maxH = res.windowHeight * 0.5
+        let finalW = displayWidth
+        let finalH = displayHeight
+        if (displayHeight > maxH) {
+          finalH = maxH
+          finalW = (finalH / CANVAS_LOGIC_HEIGHT) * CANVAS_LOGIC_WIDTH
+        }
+        this.setData({ boardWidth: finalW, boardHeight: finalH })
       }
     })
 
@@ -39,102 +68,121 @@ Page({
     ws.onMessage(res => {
       const data = JSON.parse(res.data)
 
-      if(data.type === "draw") this.drawLine(data.x1, data.y1, data.x2, data.y2)
-      if(data.type === "clear") this.clearCanvas()
+      if (data.type === "draw_batch") this.drawBatchLines(data.points)
+      if (data.type === "clear") this.clearCanvas()
 
-      if(data.type === "guess_result"){
-        wx.showToast({ title: data.correct ? "🎉 猜对了" : "❌ 猜错了", icon: data.correct ? "success" : "none" })
-        // 正确时保存上一轮答案，用于弹窗
-        if(data.correct){
-          this.setData({ lastAnswer: this.data.answer })
-        }
+      if (data.type === "guess_history_update") {
+        const formattedHistory = data.history.map(item => {
+          const splitIndex = item.indexOf(': ');
+          return { player: item.substring(0, splitIndex), text: item.substring(splitIndex + 2) };
+        });
+        this.setData({ guessHistory: formattedHistory });
+        setTimeout(() => { this.setData({ scrollToView: 'scroll-bottom' }); }, 100);
+      }
+      
+      if (data.type === "guess_result") {
+         if(!data.correct) wx.showToast({ title: "❌ 猜错了", icon: "none" })
+         else wx.showToast({ title: "🎉 猜对了！", icon: "success" })
       }
 
-      if(data.type === "next_round"){
-        // 保存上一轮画作
-        wx.canvasToTempFilePath({
-          canvasId: "board",
-          success: resPath => {
-            this.setData({ 
-              lastCanvasImage: resPath.tempFilePath,
-              showRoundEnd: true
-            })
-          }
-        })
-        // 更新新一轮答案和状态
+      if (data.type === "time_update") this.setData({ remainingTime: data.remaining })
+
+      if (data.type === "round_over") this.handleRoundEnd(false, data)
+      if (data.type === "round_timeout") this.handleRoundEnd(true, data)
+
+      if (data.type === "choose_words") {
+        this.setData({ showChoiceModal: true, choiceOptions: data.options, waitingForChoice: false, showRoundEnd: false })
+      }
+
+      if (data.type === "waiting_for_choice") {
+        this.setData({ waitingForChoice: true, showRoundEnd: false })
+      }
+
+      if (data.type === "game_start") {
+        const isD = (this.data.playerId === data.drawer)
         this.setData({
-          isDrawer: this.data.playerId === data.drawer,
-          answer: data.answer,
+          isDrawer: isD,
+          drawerName: data.drawer, // 更新画家名字
+          answer: isD ? data.answer : "",
+          hint: isD ? "" : data.hint,
           guessText: "",
-          guessHistory: []
+          guessHistory: [],
+          showChoiceModal: false,
+          waitingForChoice: false,
+          remainingTime: 60
         })
         this.clearCanvas()
-      }
-
-      if(data.type === "guess_history"){
-        this.setData({ guessHistory: data.guess_history })
       }
     })
   },
 
-  closeRoundEnd(){
-    this.setData({ showRoundEnd: false, guessText: "", guessHistory: [], lastAnswer: "" })
+  handleRoundEnd(isTimeout, data) {
+    if(this.data.showChoiceModal || this.data.waitingForChoice) return
+    wx.canvasToTempFilePath({
+      canvasId: "board",
+      success: resPath => {
+        this.setData({
+          lastCanvasImage: resPath.tempFilePath,
+          showRoundEnd: true,
+          lastAnswer: data.answer,
+          lastDrawer: data.drawer,
+          guessHistory: [],
+          isTimeout: isTimeout
+        })
+      }
+    })
   },
 
-  onTouchStart(e){
-    if(!this.data.isDrawer) return
-    const t = e.touches[0]
-    this.lastX = t.x
-    this.lastY = t.y
+  chooseWord(e) {
+    const word = e.currentTarget.dataset.word
+    this.setData({ showChoiceModal: false })
+    app.safeSend({ type: "word_chosen", word: word })
   },
 
-  onTouchMove(e){ 
-    if(!this.data.isDrawer) return
+  closeRoundEnd() {
+    this.setData({ showRoundEnd: false })
+    app.safeSend({ type: "close_round" })
+  },
+
+  // 绘图函数保持不变...
+  onTouchStart(e) {
+    if (!this.data.isDrawer) return
+    const t = e.touches[0]; this.lastX = t.x; this.lastY = t.y
+    this.drawLocalPoint(t.x, t.y)
+    const nx = t.x / this.data.boardWidth; const ny = t.y / this.data.boardHeight
+    this.drawBuffer.push({ x: nx, y: ny, newLine: true })
+    this.flushDrawBuffer()
+  },
+  onTouchMove(e) {
+    if (!this.data.isDrawer) return
     const t = e.touches[0], x = t.x, y = t.y
-    if(this.lastX !== null){
-      this.drawLine(this.lastX, this.lastY, x, y)
-      app.safeSend({ type: "draw", x1: this.lastX, y1: this.lastY, x2: x, y2: y })
+    if (this.lastX !== null) {
+      this.drawLocalLine(this.lastX, this.lastY, x, y)
+      const nx = x / this.data.boardWidth; const ny = y / this.data.boardHeight
+      this.drawBuffer.push({ x: nx, y: ny, newLine: false })
+      const now = Date.now()
+      if (now - this.lastSendTime > 50 || this.drawBuffer.length > 5) {
+        this.flushDrawBuffer(); this.lastSendTime = now
+      }
     }
-    this.lastX = x
-    this.lastY = y
+    this.lastX = x; this.lastY = y
   },
-
-  onTouchEnd(){
-    this.lastX = null
-    this.lastY = null
-  },
-
-  drawLine(x1, y1, x2, y2){
-    const ctx = this.ctx
-    ctx.setStrokeStyle("#000")
-    ctx.setLineWidth(4)
-    ctx.setLineCap("round")
-    ctx.beginPath()
-    ctx.moveTo(x1, y1)
-    ctx.lineTo(x2, y2)
-    ctx.stroke()
+  onTouchEnd() { if (!this.data.isDrawer) return; this.flushDrawBuffer(); this.lastX = null; this.lastY = null },
+  flushDrawBuffer() { if (this.drawBuffer.length === 0) return; app.safeSend({ type: "draw_batch", points: [...this.drawBuffer] }); this.drawBuffer = [] },
+  drawLocalPoint(x, y) { const ctx = this.ctx; ctx.setFillStyle("#000"); ctx.beginPath(); ctx.arc(x, y, 2, 0, 2 * Math.PI); ctx.fill(); ctx.draw(true) },
+  drawLocalLine(x1, y1, x2, y2) { const ctx = this.ctx; ctx.setStrokeStyle("#000"); ctx.setLineWidth(4); ctx.setLineCap("round"); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.draw(true) },
+  drawBatchLines(points) {
+    if (!points || points.length === 0) return; const ctx = this.ctx; ctx.setStrokeStyle("#000"); ctx.setLineWidth(4); ctx.setLineCap("round")
+    const localW = this.data.boardWidth; const localH = this.data.boardHeight
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i]; const localX = p.x * localW; const localY = p.y * localH
+      if (p.newLine) { this.lastRemotePoint = { x: p.x, y: p.y }; ctx.setFillStyle("#000"); ctx.beginPath(); ctx.arc(localX, localY, 2, 0, 2 * Math.PI); ctx.fill() }
+      else { if (this.lastRemotePoint) { const prevLocalX = this.lastRemotePoint.x * localW; const prevLocalY = this.lastRemotePoint.y * localH; ctx.beginPath(); ctx.moveTo(prevLocalX, prevLocalY); ctx.lineTo(localX, localY); ctx.stroke() }; this.lastRemotePoint = { x: p.x, y: p.y } }
+    }
     ctx.draw(true)
   },
-
-  clearCanvas(){ 
-    if(!this.ctx) return
-    this.ctx.clearRect(0, 0, this.data.boardWidth, this.data.boardHeight)
-    this.ctx.draw()
-  },
-
-  clearBoard(){
-    if(!this.data.isDrawer) return
-    this.clearCanvas()
-    app.safeSend({ type: "clear" })
-  },
-
-  onGuessInput(e){
-    this.setData({ guessText: e.detail.value })
-  },
-
-  submitGuess(){
-    if(!this.data.guessText) return
-    app.safeSend({ type: "guess", answer: this.data.guessText })
-    this.setData({ guessText: "" })
-  }
+  clearCanvas() { if (!this.ctx) return; this.ctx.clearRect(0, 0, this.data.boardWidth, this.data.boardHeight); this.ctx.draw(); this.lastRemotePoint = null },
+  clearBoard() { if (!this.data.isDrawer) return; this.clearCanvas(); app.safeSend({ type: "clear" }) },
+  onGuessInput(e) { this.setData({ guessText: e.detail.value }) },
+  submitGuess() { if (!this.data.guessText) return; app.safeSend({ type: "guess", answer: this.data.guessText }); this.setData({ guessText: "" }) }
 })

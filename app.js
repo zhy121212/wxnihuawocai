@@ -3,18 +3,21 @@ App({
     ws: null,
     socketOpen: false,
     sendQueue: [],
-    clientId: "player_" + Math.floor(Math.random()*1000)
+    clientId: "" // 先留空，等用户输入名字后赋值
   },
 
   onLaunch() {
+    // 生成一个临时的随机ID，或者等用户输入
+    this.globalData.clientId = "user_" + Math.floor(Math.random() * 10000)
+    
     const ws = wx.connectSocket({
-      url: "wss://zzz.zhy1212.top/ws"
+      url: "ws://192.168.0.166:8675"
     })
     this.globalData.ws = ws
 
     ws.onOpen(() => {
       this.globalData.socketOpen = true
-      this.safeSend({ type: "join_room", playerId: this.globalData.clientId, roomId: "room1" })
+      // 发送队列中积压的消息
       while(this.globalData.sendQueue.length){
         this.safeSend(this.globalData.sendQueue.shift())
       }
