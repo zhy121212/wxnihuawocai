@@ -1,4 +1,4 @@
-<view class="container">
+<view class="container" catchtouchmove="true">
 
 <!-- 顶部状态 -->
 <view class="status">

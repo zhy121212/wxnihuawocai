@@ -4,7 +4,11 @@
   align-items: center;
   padding: 15px;
   background-color: #f9f9f9;
-  min-height: 100vh;
+  /* 修改和新增部分 */
+  height: 100vh;      /* 使用固定高度 */
+  width: 100vw;       /* 使用固定宽度 */
+  overflow: hidden;   /* 彻底禁止溢出内容显示 */
+  position: fixed;    /* 锁定位置 */
   box-sizing: border-box;
 }
 
@@ -95,3 +99,4 @@
   border: 1px solid #ccc;
   border-radius: 6px;
 }
+
